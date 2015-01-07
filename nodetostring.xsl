@@ -36,15 +36,23 @@
 
 
 	<xsl:template match="*" mode="selfclosetag">
+	        <xsl:param name="namespaces-in-scope"/>
 		<xsl:text>&lt;</xsl:text>
 		<xsl:value-of select="name()"/>
+		<xsl:apply-templates select="." mode="namespaces">
+		  <xsl:with-param name="namespaces-in-scope" select="$namespaces-in-scope"/>
+		</xsl:apply-templates>
 		<xsl:apply-templates select="@*" mode="attribs"/>
 		<xsl:text>/&gt;</xsl:text>
 	</xsl:template>
 
 	<xsl:template match="*" mode="opentag">
+	        <xsl:param name="namespaces-in-scope"/>
 		<xsl:text>&lt;</xsl:text>
 		<xsl:value-of select="name()"/>
+		<xsl:apply-templates select="." mode="namespaces">
+		  <xsl:with-param name="namespaces-in-scope" select="$namespaces-in-scope"/>
+		</xsl:apply-templates>
 		<xsl:apply-templates select="@*" mode="attribs"/>
 		<xsl:text>&gt;</xsl:text>
 	</xsl:template>
@@ -55,7 +63,19 @@
 		<xsl:text>&gt;</xsl:text>
 	</xsl:template>
 
+	<xsl:template match="*" mode="namespaces">
+	        <xsl:param name="namespaces-in-scope"/>
+		<xsl:if test="not(index-of($namespaces-in-scope, substring-before(name(), ':')))">
+		    <xsl:text> xmlns:</xsl:text>
+		    <xsl:value-of select="substring-before(name(), ':')"/>
+		    <xsl:text>="</xsl:text>
+		    <xsl:value-of select="namespace-uri()"/>
+		    <xsl:text>"</xsl:text>
+		</xsl:if>
+	</xsl:template>
+
 	<xsl:template match="* | text()" mode="nodetostring">
+	        <xsl:param name="namespaces-in-scope"/>
 		<xsl:choose>
 			<xsl:when test="boolean(name())">
 				<xsl:choose>
@@ -63,15 +83,21 @@
 						 if element is not empty
 					-->
 					<xsl:when test="normalize-space(.) != $empty or *">
-						<xsl:apply-templates select="." mode="opentag"/>
-							<xsl:apply-templates select="* | text()" mode="nodetostring"/>
+						<xsl:apply-templates select="." mode="opentag">
+							<xsl:with-param name="namespaces-in-scope" select="$namespaces-in-scope"/>
+						</xsl:apply-templates>
+						<xsl:apply-templates select="* | text()" mode="nodetostring">
+							<xsl:with-param name="namespaces-in-scope" select="in-scope-prefixes(.)"/>
+						</xsl:apply-templates>
 						<xsl:apply-templates select="." mode="closetag"/>
 					</xsl:when>
 					<!--
 						 assuming emty tags are self closing, e.g. <img/>, <source/>, <input/>
 					-->
 					<xsl:otherwise>
-						<xsl:apply-templates select="." mode="selfclosetag"/>
+						<xsl:apply-templates select="." mode="selfclosetag">
+							<xsl:with-param name="namespaces-in-scope" select="$namespaces-in-scope"/>
+						</xsl:apply-templates>
 					</xsl:otherwise>
 				</xsl:choose>
 			</xsl:when>
@@ -82,13 +108,7 @@
 	</xsl:template>
 
 	<xsl:template match="@*" mode="attribs">
-		<xsl:if test="position() = 1">
-			<xsl:text> </xsl:text>
-		</xsl:if>
-		<xsl:value-of select="concat(name(), '=', $q, ., $q)"/>
-		<xsl:if test="position() != last()">
-			<xsl:text> </xsl:text>
-		</xsl:if>
+		<xsl:value-of select="concat(' ', name(), '=', $q, ., $q)"/>
 	</xsl:template>
 
 </xsl:stylesheet>
